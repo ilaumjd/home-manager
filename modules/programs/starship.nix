@@ -1,4 +1,9 @@
-{ config, lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 
 with lib;
 
@@ -10,7 +15,8 @@ let
 
   starshipCmd = "${config.home.profileDirectory}/bin/starship";
 
-in {
+in
+{
   meta.maintainers = [ ];
 
   options.programs.starship = {
@@ -44,6 +50,23 @@ in {
       '';
       description = ''
         Configuration written to
+        {file}`$XDG_CONFIG_HOME/starship.toml`.
+
+        See <https://starship.rs/config/> for the full list
+        of options.
+      '';
+    };
+
+    extraConfig = mkOption {
+      default = null;
+      type = types.nullOr types.lines;
+      example = ''
+        [character]
+        error_symbol = "[➤](bold red)"
+        success_symbol = "[➤](bold green)"
+      '';
+      description = ''
+        TOML configuration written to
         {file}`$XDG_CONFIG_HOME/starship.toml`.
 
         See <https://starship.rs/config/> for the full list
@@ -88,8 +111,17 @@ in {
   config = mkIf cfg.enable {
     home.packages = [ cfg.package ];
 
-    xdg.configFile."starship.toml" = mkIf (cfg.settings != { }) {
-      source = tomlFormat.generate "starship-config" cfg.settings;
+    xdg.configFile."starship.toml" = mkIf (cfg.settings != { } || cfg.extraConfig != null) {
+      text =
+        let
+          settingsStr =
+            if cfg.settings != { } then
+              builtins.readFile (tomlFormat.generate "starship-config" cfg.settings)
+            else
+              "";
+          extraConfigStr = if cfg.extraConfig != null then cfg.extraConfig else "";
+        in
+        extraConfigStr + "\n" + settingsStr;
     };
 
     programs.bash.initExtra = mkIf cfg.enableBashIntegration ''
